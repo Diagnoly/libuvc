@@ -39,7 +39,9 @@ set(SOURCES
   src/misc.c
 )
 
-find_package(LibUSB)
+if(NOT ANDROID)
+  find_package(libusb)
+endif()
 
 # JpegPkg name to differ from shipped with CMake
 find_package(JpegPkg QUIET)
@@ -51,7 +53,7 @@ else()
   message(WARNING "JPEG not found. libuvc will not support JPEG decoding.")
 endif()
 
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
   set(THREADS_PREFER_PTHREAD_FLAG TRUE)
   find_package(Threads REQUIRED)
@@ -116,7 +118,7 @@ foreach(target_name IN LISTS UVC_TARGETS)
   )
   target_link_libraries(${target_name}
     # libusb-1.0 used internally so we link to it privately.
-    PRIVATE LibUSB::LibUSB ${threads}
+    PRIVATE libusb::libusb ${threads}
   )
   if(JPEG_FOUND)
     target_link_libraries(${target_name}
@@ -192,7 +194,7 @@ install(EXPORT libuvcTargets
 )
 
 install(FILES 
-    cmake/FindLibUSB.cmake
+    cmake/Findlibusb.cmake
     cmake/FindJpegPkg.cmake
   DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
 )
