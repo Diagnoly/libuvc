@@ -121,6 +121,23 @@ int uvc_set_ctrl(uvc_device_handle_t *devh, uint8_t unit, uint8_t ctrl, void *da
     0 /* timeout */);
 }
 
+/**
+ * @brief return UVC compliance level, e.g. 0x0100 (1.0), 0x0110
+ * 
+ * @param devh UVC device handle
+ * @param bcdUVC Fill with UVC compliance level
+ **/
+uvc_error_t uvc_get_bcdUVC(uvc_device_handle_t *devh, uint16_t* bcdUVC)
+{
+  uvc_error_t ret;
+  if(devh == NULL || bcdUVC == NULL)
+    return UVC_ERROR_INVALID_PARAM;
+  
+  *bcdUVC = devh->info->ctrl_if.bcdUVC;
+
+  return UVC_SUCCESS;
+}
+
 /***** INTERFACE CONTROLS *****/
 uvc_error_t uvc_get_power_mode(uvc_device_handle_t *devh, enum uvc_device_power_mode *mode, enum uvc_req_code req_code) {
   uint8_t mode_char;

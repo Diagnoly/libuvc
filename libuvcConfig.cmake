@@ -11,7 +11,7 @@ if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
 endif()
 
 find_package(JpegPkg ${extraArgs})
-find_package(LibUSB ${extraArgs})
+find_package(libusb ${extraArgs})
 include("${CMAKE_CURRENT_LIST_DIR}/libuvcTargets.cmake")
 
 set(libuvc_FOUND TRUE)
