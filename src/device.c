@@ -334,6 +334,180 @@ uvc_error_t uvc_open(
   return ret;
 }
 
+/// #Diagnoly_Modif BEGIN
+
+/**
+ * XXX add for non-rooted Android device, >= Android7
+ * generate fake libusb_device according to specific params
+ * and set it to uvc_device_t to access UVC device on Android7 or later
+ */
+uvc_error_t uvc_get_device_with_fd(uvc_context_t *ctx, uvc_device_t **device,
+								   uvc_device_handle_t **devh , int fd) {
+
+	UVC_ENTER();
+	uvc_device_handle_t *internal_devh;
+	internal_devh = calloc(1, sizeof(*internal_devh));
+
+
+	ctx->own_usb_ctx = 1;
+	int ret = libusb_wrap_sys_device(ctx->usb_ctx, (intptr_t)fd, &internal_devh->usb_devh);
+	if (ret < 0) {
+		UVC_DEBUG("libusb_wrap_sys_device failed: %d\n", ret);
+		return -2;
+	} else if (internal_devh->usb_devh == NULL) {
+		UVC_DEBUG("libusb_wrap_sys_device returned invalid handle\n");
+		return -3;
+	}
+	//dev->ctx = ctx;
+    UVC_DEBUG("get the device");
+
+    struct libusb_device *usb_dev = libusb_get_device(internal_devh->usb_devh);
+
+
+    if (usb_dev) {
+        *device = malloc(sizeof(uvc_device_t/* *device */));
+        (*device)->ctx = ctx;
+        (*device)->ref = 0;
+        (*device)->usb_dev = usb_dev;
+//		libusb_set_device_fd(usb_dev, fd);	// assign fd to libusb_device for non-rooted Android devices
+        uvc_ref_device(*device);
+        // #Diagnoly_Modif BEGIN
+        uvc_ref_device(*device); // Ref twice to avoid match desktop refcount with automatic detection
+		internal_devh->dev = (*device); // to be able to call function uvc_print_diag()
+        // #Diagnoly_Modif END
+		*devh = internal_devh;
+        UVC_EXIT(UVC_SUCCESS);
+        return UVC_SUCCESS;
+    } else {
+        UVC_DEBUG("could not find specific device");
+        *device = NULL;
+		*devh = internal_devh;
+        return UVC_ERROR_NO_DEVICE;
+    }
+
+	*devh = internal_devh;
+  UVC_EXIT(UVC_SUCCESS);
+
+	return UVC_SUCCESS;
+}
+
+/** @brief Open a UVC device which have been found using uvc_get_device_with_fd(...)
+ * @ingroup device
+ *
+ * @param dev Device to open
+ * @param[out] devh Handle on opened device
+ * @return Error opening device or SUCCESS
+ */
+uvc_error_t uvc_open_from_device_handle(uvc_device_t *dev, uvc_device_handle_t *uvc_handle) {
+
+	UVC_ENTER();
+
+	if(dev->usb_dev == NULL) dev->usb_dev = libusb_get_device(uvc_handle->usb_devh);
+
+	if (dev->usb_dev == NULL) UVC_DEBUG("dev->usb_dev == NULL");
+	else UVC_DEBUG("obtained Usb Device !");
+	uvc_error_t ret;
+	struct libusb_device_descriptor desc;
+	//struct libusb_device_handle *usb_devh;
+	UVC_ENTER();
+
+	UVC_DEBUG("libusb_get_device_descriptor: \n");
+
+    ret = libusb_get_device_descriptor(dev->usb_dev, &desc);
+    if (ret < 0) {
+		UVC_DEBUG(stderr, "failed to get device descriptor");
+        return -1;
+    } else 	UVC_DEBUG("libusb_get_device_descriptor() sucessful. Return = %d", ret);
+    ret = libusb_open(dev->usb_dev, &uvc_handle->usb_devh);
+	UVC_DEBUG("libusb_open() = %d", ret);
+
+
+	if (ret != UVC_SUCCESS) {
+		//UVC_EXIT(ret);
+		//return ret;
+	}
+	if (dev->ref == 0) uvc_ref_device(dev);
+	//uvc_handle->usb_devh = usb_devh;
+	//uvc_handle->reset_on_release_if = 0;	// XXX
+	ret = uvc_get_device_info(uvc_handle, &(uvc_handle->info));
+
+	if (ret != UVC_SUCCESS) {
+		UVC_DEBUG("uvc_get_device_info failed. Return = %d", ret);
+		goto fail2;    // uvc_claim_if was not called yet and we don't need to call uvc_release_if
+	}
+#if !UVC_DETACH_ATTACH
+	/* enable automatic attach/detach kernel driver on supported platforms in libusb */
+	libusb_set_auto_detach_kernel_driver(uvc_handle->usb_devh, 1);
+#endif
+	UVC_DEBUG("Trying to claim interface number %d",
+						uvc_handle->info->ctrl_if.bInterfaceNumber);
+	ret = uvc_claim_if(uvc_handle, uvc_handle->info->ctrl_if.bInterfaceNumber);
+	if (ret != UVC_SUCCESS) {
+		UVC_DEBUG("uvc_claim_if failed. Return = %d", ret);
+		goto fail2;
+	}
+	libusb_get_device_descriptor(dev->usb_dev, &desc);
+	uvc_handle->is_isight = (desc.idVendor == 0x05ac && desc.idProduct == 0x8501);
+
+	if (uvc_handle->info->ctrl_if.bEndpointAddress) {
+		UVC_DEBUG("status check transfer:bEndpointAddress=0x%02x", uvc_handle->info->ctrl_if.bEndpointAddress);
+		uvc_handle->status_xfer = libusb_alloc_transfer(0);
+		if (!uvc_handle->status_xfer) {
+			ret = UVC_ERROR_NO_MEM;
+			UVC_DEBUG("libusb_alloc_transfer failed. Return = %d", ret);
+			goto fail;
+		}
+
+		libusb_fill_interrupt_transfer(uvc_handle->status_xfer, uvc_handle->usb_devh,
+									   uvc_handle->info->ctrl_if.bEndpointAddress,
+									   uvc_handle->status_buf, sizeof(uvc_handle->status_buf),
+				_uvc_status_callback, uvc_handle, 0);
+		ret = libusb_submit_transfer(uvc_handle->status_xfer);
+		UVC_DEBUG("libusb_submit_transfer() = %d", ret);
+
+		if (ret) {
+			UVC_DEBUG(stderr, "device has a status interrupt endpoint, but unable to read from it");
+			goto fail;
+		}
+	} else {
+		UVC_DEBUG(stderr, "internal_devh->info->ctrl_if.bEndpointAddress is null");
+	}
+
+	if (dev->ctx->own_usb_ctx && dev->ctx->open_devices == NULL) {
+		/* Since this is our first device, we need to spawn the event handler thread */
+		uvc_start_handler_thread(dev->ctx);
+
+	}
+
+	DL_APPEND(dev->ctx->open_devices, uvc_handle);
+
+	UVC_DEBUG("Handler Thread sucessfully started !!");
+
+	UVC_EXIT(ret);
+
+	return ret;
+
+
+
+fail:
+	UVC_DEBUG(stderr,  "Fail");
+	uvc_release_if(uvc_handle, uvc_handle->info->ctrl_if.bInterfaceNumber);	// XXX crash, assume when uvc_get_device_info failed.
+fail2:
+	UVC_DEBUG(stderr,  "Fail 2");
+#if !UVC_DETACH_ATTACH
+	/* disable automatic attach/detach kernel driver on supported platforms in libusb */
+	libusb_set_auto_detach_kernel_driver(uvc_handle->usb_devh, 0);
+#endif
+	libusb_close(uvc_handle->usb_devh);
+	uvc_unref_device(dev);
+	uvc_free_devh(uvc_handle);
+
+	UVC_EXIT(ret);
+
+	return ret;
+}
+/// #Diagnoly_Modif END
+
 static uvc_error_t uvc_open_internal(
     uvc_device_t *dev,
     struct libusb_device_handle *usb_devh,

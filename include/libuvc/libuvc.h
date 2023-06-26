@@ -568,6 +568,14 @@ uvc_error_t uvc_open(
     uvc_device_handle_t **devh);
 void uvc_close(uvc_device_handle_t *devh);
 
+/// #Diagnoly_Modif BEGIN
+uvc_error_t uvc_get_device_with_fd(uvc_context_t *ctx, uvc_device_t **device,
+								   uvc_device_handle_t **devh , int fd);
+
+uvc_error_t uvc_open_from_device_handle(uvc_device_t *dev, uvc_device_handle_t *uvc_handle);
+/// #Diagnoly_Modif END
+
+
 uvc_device_t *uvc_get_device(uvc_device_handle_t *devh);
 struct libusb_device_handle *uvc_get_libusb_handle(uvc_device_handle_t *devh);
 
