@@ -101,7 +101,64 @@ void *_uvc_handle_events(void *arg) {
  * @param[in]  usb_ctx Optional USB context to use
  * @return Error opening context or UVC_SUCCESS
  */
+uvc_error_t uvc_init_no_discovery(uvc_context_t **pctx, struct libusb_context *usb_ctx) {
+
+	int rc;
+
+	uvc_context_t *ctx = calloc(1, sizeof(*ctx));
+
+	if (usb_ctx == NULL) {
+		// set libusb debug
+		//libusb_set_option(ctx->usb_ctx, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_DEBUG);
+		rc = libusb_set_option(ctx->usb_ctx, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, LIBUSB_LOG_LEVEL_DEBUG);
+		if (rc != LIBUSB_SUCCESS) {
+			UVC_DEBUG(stderr, "libusb_set_option failed: %d\n", rc);
+			return -1;
+		}
+
+		rc = libusb_init(&ctx->usb_ctx);
+		//ret = libusb_init(NULL);
+        if (rc < 0) {
+            UVC_DEBUG(stderr, "libusb_init failed: %d\n", rc);
+			UVC_DEBUG("Trying to initialize with NULL CTX");
+			rc = libusb_init(NULL);
+            if (rc < 0) {
+                UVC_DEBUG(stderr, "libusb_init failed: %d\n", rc);
+				UVC_DEBUG("Trying to initialize with NULL CTX");
+                return -1;
+            } else UVC_DEBUG("libusb_init only sucessful without Context");
+        } else UVC_DEBUG("libusb_init with Context sucessful");
+
+		ctx->own_usb_ctx = 1;
+		if (rc != UVC_SUCCESS) {
+			UVC_DEBUG("failed:err=%d", rc);
+			free(ctx);
+			ctx = NULL;
+		}
+	} else {
+		ctx->own_usb_ctx = 0;
+		ctx->usb_ctx = usb_ctx;
+	}
+
+	if (ctx != NULL)
+		*pctx = ctx;
+	return rc;
+}
+
+/** @brief Initializes the UVC context
+ * @ingroup init
+ *
+ * @note If you provide your own USB context, you must handle
+ * libusb event processing using a function such as libusb_handle_events.
+ *
+ * @param[out] pctx The location where the context reference should be stored.
+ * @param[in]  usb_ctx Optional USB context to use
+ * @return Error opening context or UVC_SUCCESS
+ */
 uvc_error_t uvc_init(uvc_context_t **pctx, struct libusb_context *usb_ctx) {
+#ifdef __ANDROID__
+  return uvc_init_no_discovery(pctx, usb_ctx);
+#else //__ANDROID__
   uvc_error_t ret = UVC_SUCCESS;
   uvc_context_t *ctx = calloc(1, sizeof(*ctx));
 
@@ -121,6 +178,7 @@ uvc_error_t uvc_init(uvc_context_t **pctx, struct libusb_context *usb_ctx) {
     *pctx = ctx;
 
   return ret;
+#endif //__ANDROID__
 }
 
 /**
