@@ -1108,7 +1108,7 @@ const uvc_extension_unit_t *uvc_get_extension_units(uvc_device_handle_t *devh) {
  *
  * @param devh Device handle to an open UVC device
  */
-const uint16_t uvc_get_uvc_compliance(uvc_device_handle_t *devh) {
+uint16_t uvc_get_uvc_compliance(uvc_device_handle_t *devh) {
   return devh->info->ctrl_if.bcdUVC;
 }
 
