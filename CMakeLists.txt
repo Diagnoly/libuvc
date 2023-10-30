@@ -82,6 +82,7 @@ if(BUILD_UVC_SHARED)
     # Exported name of target within namespace LibUVC
     EXPORT_NAME UVCShared
   )
+  set_target_properties(uvc PROPERTIES POSITION_INDEPENDENT_CODE ON)
   list(APPEND UVC_TARGETS uvc)
   if(NOT LibUVC_STATIC)  
     add_library(LibUVC::UVC ALIAS uvc)
@@ -98,6 +99,7 @@ if(BUILD_UVC_STATIC)
     # Exported name of target within namespace LibUVC
     EXPORT_NAME UVCStatic
   )
+  set_target_properties(uvc_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
   list(APPEND UVC_TARGETS uvc_static)
   add_library(LibUVC::UVCStatic ALIAS uvc_static)
   if(LibUVC_STATIC)
