@@ -415,7 +415,7 @@ uvc_error_t uvc_open_from_device_handle(uvc_device_t *dev, uvc_device_handle_t *
 
     ret = libusb_get_device_descriptor(dev->usb_dev, &desc);
     if (ret < 0) {
-		UVC_DEBUG(stderr, "failed to get device descriptor");
+		UVC_DEBUG("failed to get device descriptor");
         return -1;
     } else 	UVC_DEBUG("libusb_get_device_descriptor() sucessful. Return = %d", ret);
     ret = libusb_open(dev->usb_dev, &uvc_handle->usb_devh);
@@ -466,11 +466,11 @@ uvc_error_t uvc_open_from_device_handle(uvc_device_t *dev, uvc_device_handle_t *
 		UVC_DEBUG("libusb_submit_transfer() = %d", ret);
 
 		if (ret) {
-			UVC_DEBUG(stderr, "device has a status interrupt endpoint, but unable to read from it");
+			UVC_DEBUG("device has a status interrupt endpoint, but unable to read from it");
 			goto fail;
 		}
 	} else {
-		UVC_DEBUG(stderr, "internal_devh->info->ctrl_if.bEndpointAddress is null");
+		UVC_DEBUG("internal_devh->info->ctrl_if.bEndpointAddress is null");
 	}
 
 	if (dev->ctx->own_usb_ctx && dev->ctx->open_devices == NULL) {
@@ -490,10 +490,10 @@ uvc_error_t uvc_open_from_device_handle(uvc_device_t *dev, uvc_device_handle_t *
 
 
 fail:
-	UVC_DEBUG(stderr,  "Fail");
+	UVC_DEBUG( "Fail");
 	uvc_release_if(uvc_handle, uvc_handle->info->ctrl_if.bInterfaceNumber);	// XXX crash, assume when uvc_get_device_info failed.
 fail2:
-	UVC_DEBUG(stderr,  "Fail 2");
+	UVC_DEBUG( "Fail 2");
 #if !UVC_DETACH_ATTACH
 	/* disable automatic attach/detach kernel driver on supported platforms in libusb */
 	libusb_set_auto_detach_kernel_driver(uvc_handle->usb_devh, 0);

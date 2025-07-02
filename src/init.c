@@ -112,18 +112,18 @@ uvc_error_t uvc_init_no_discovery(uvc_context_t **pctx, struct libusb_context *u
 		//libusb_set_option(ctx->usb_ctx, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_DEBUG);
 		rc = libusb_set_option(ctx->usb_ctx, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, LIBUSB_LOG_LEVEL_DEBUG);
 		if (rc != LIBUSB_SUCCESS) {
-			UVC_DEBUG(stderr, "libusb_set_option failed: %d\n", rc);
+			UVC_DEBUG("libusb_set_option failed: %d\n", rc);
 			return -1;
 		}
 
 		rc = libusb_init(&ctx->usb_ctx);
 		//ret = libusb_init(NULL);
         if (rc < 0) {
-            UVC_DEBUG(stderr, "libusb_init failed: %d\n", rc);
+            UVC_DEBUG("libusb_init failed: %d\n", rc);
 			UVC_DEBUG("Trying to initialize with NULL CTX");
 			rc = libusb_init(NULL);
             if (rc < 0) {
-                UVC_DEBUG(stderr, "libusb_init failed: %d\n", rc);
+                UVC_DEBUG("libusb_init failed: %d\n", rc);
 				UVC_DEBUG("Trying to initialize with NULL CTX");
                 return -1;
             } else UVC_DEBUG("libusb_init only sucessful without Context");
