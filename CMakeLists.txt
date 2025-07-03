@@ -39,12 +39,7 @@ set(SOURCES
   src/misc.c
 )
 
-if(NOT ANDROID)
-  find_package(libusb REQUIRED)
-  set(LIBUSB_NAME libusb::libusb)
-else()
-  set(LIBUSB_NAME usb)
-endif()
+set(LIBUSB_NAME usb)
 
 # JpegPkg name to differ from shipped with CMake
 find_package(JpegPkg QUIET)
